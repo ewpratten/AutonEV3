@@ -20,7 +20,7 @@ class Path {
 let left_motor_port = "a";
 let right_motor_port = "b";
 let gyro_port = 1;
-let wheel_diameter = 1; // TODO add real wheel diameter
+let wheel_diameter = 0.04; // TODO add real wheel diameter
 let wheel_circumference = wheel_diameter * Math.PI;
 let RampRate = 0.0;
 
@@ -80,6 +80,19 @@ function hypot(x: number, y: number) {
     return max === 1 / 0 ? 1 / 0 : max * Math.sqrt(s);
 }
 
+function getWrappedError(currentAngle: number, desiredAngle: number) {
+    let phi: number = Math.abs(currentAngle - desiredAngle) % 360; // This is either the distance or 360 - distance
+    let distance: number = phi > 180 ? 360 - phi : phi;
+
+    // Determine the sign (is the difference positive of negative)
+    let sign: number = (currentAngle - desiredAngle >= 0 && currentAngle - desiredAngle <= 180)
+        || (currentAngle - desiredAngle <= -180 && currentAngle - desiredAngle >= -360) ? 1 : -1;
+
+    // Return the final difference
+    return distance * sign;
+
+}
+
 /**
  * Returns value clamped between low and high boundaries.
  *
@@ -89,6 +102,14 @@ function hypot(x: number, y: number) {
  */
 function clamp(val: number, min: number, max: number) {
     return Math.max(min, Math.min(val, max));
+}
+
+/**
+ * Format a float to 2 decimals
+ * @param val Value to format
+ */
+function pf2(val: number): number {
+    return Math.round(val * 100) / 100;
 }
 
 /* ########## Gyro Class ########## */
@@ -213,6 +234,10 @@ class Pose {
         this.y = y;
         this.theta = theta;
     }
+
+    public toString(): string {
+        return "Pose<" + pf2(this.x) + ", " + pf2(this.y) + ", " + pf2(this.theta.getDegrees()) + ">"
+    }
 }
 
 
@@ -259,14 +284,14 @@ class Localizer {
     }
 
     public update(currentAngle: Rotation, leftMeters: number, rightMeters: number) {
-        let deltaLeft: number = leftMeters - this.prevDistLeft;
-        let deltaRight: number = rightMeters - this.prevDistRight;
+        let deltaLeft: number = leftMeters;//- this.prevDistLeft;
+        let deltaRight: number = rightMeters;// - this.prevDistRight;
 
         this.prevDistLeft = leftMeters;
         this.prevDistRight = rightMeters;
 
         let deltaPose: number = (deltaLeft + deltaRight) / 2.0;
-        let angle: Rotation = currentAngle.rotateBy(this.gyroOffset);
+        let angle: Rotation = currentAngle.rotateBy(new Rotation(getWrappedError(this.gyroOffset.getRadians(), 0)));
 
         // TODO: These may need to be flipped cos/sin
         let newX: number = this.pose.x + (deltaPose * Math.sin(angle.getRadians()));
@@ -283,6 +308,69 @@ class Localizer {
     }
 }
 
+/* ########## Drive code ########## */
+
+class Motor {
+
+    private motor: motors.Motor;
+    private output: number;
+
+    private rps: number;
+    private lastAngle: number;
+    private lastTime: number;
+
+    constructor(motor: motors.Motor) {
+        this.motor = motor;
+    }
+
+    public set(output: number) {
+        this.motor.run(output * 100);
+        this.output = output;
+    }
+
+    public setBrakes(on: boolean) {
+        this.motor.setBrake(on);
+    }
+
+    public update() {
+        let angle: number = this.motor.angle();
+        let dtheta: number = getWrappedError(angle, this.lastAngle);
+        this.lastAngle = angle;
+        let time: number = control.millis() / 1000;
+        let dt: number = time - this.lastTime;
+        this.lastTime = time;
+        this.rps = dtheta * dt;
+    }
+
+    public getRPS(): number {
+        return this.rps;
+
+    }
+
+    public getRPM(): number {
+        return this.rps / 60;
+    }
+}
+
+// Motor defs
+let leftMotor: Motor = new Motor(motors.largeA);
+let rightMotor: Motor = new Motor(motors.largeB);
+
+function arcadeDrive(speed: number, turn: number) {
+    let left: number = speed + turn;
+    let right: number = speed - turn;
+
+    let magnitude: number = Math.max(left, right);
+    if (magnitude > 1.0) {
+        left /= magnitude;
+        right /= magnitude;
+    }
+
+    // Send tank command
+    leftMotor.set(left);
+    rightMotor.set(right);
+}
+
 
 /* ########## Main Robot Code ########## */
 
@@ -290,29 +378,67 @@ let gyro: Gyro = new Gyro();
 let localizer: Localizer = new Localizer(gyro.getRotation(), new Pose(0, 0, createRotationDegrees(0.0)));
 
 function init() {
-    log("Robot code starting...")
-    log("Autonomous car")
+    log("Robot code starting...");
+    log("Autonomous car");
+
+    log("Setting motor modes");
+    leftMotor.setBrakes(true);
+    rightMotor.setBrakes(true);
+
+    log("Awaiting button press");
+
 }
+
+let canRunCode = false;
 
 /**
  * All main code shall be run from here to reduce issues with cross-compiling to "blocks mode"
  */
 function loop() {
 
+    // Update both motors
+    leftMotor.update();
+    rightMotor.update();
+
+    // Wait for button press to run code
+    if (!canRunCode) {
+        canRunCode = brick.buttonDown.isPressed();
+        if (canRunCode) {
+            log("Running program");
+        }
+        return;
+    }
+
     // Get the robot's current position
     let robotPose: Pose = handleLocalization();
+
+    log(robotPose.toString());
+
 
 }
 
 function handleLocalization(): Pose {
 
     // Read sensors
-    let leftMeters: number;
-    let rightMeters: number;
+    let leftRPS: number = leftMotor.getRPS();
+    let leftMPS: number;
+    if (leftRPS != 0) {
+        leftMPS = wheel_circumference / leftRPS;
+    } else {
+        leftMPS = 0.0;
+    }
+    let rightRPS: number = rightMotor.getRPS();
+    let rightMPS: number;
+    if (rightRPS != 0) {
+        rightMPS = wheel_circumference / rightRPS;
+    } else {
+        rightMPS = 0.0;
+    }
+
     let angle: Rotation = gyro.getRotation();
 
     // Calculate pose
-    localizer.update(angle, leftMeters, rightMeters);
+    localizer.update(angle, leftMPS, rightMPS);
 
     // Return the pose
     return localizer.getPoseMeters();
