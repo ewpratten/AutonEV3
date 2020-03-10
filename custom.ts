@@ -290,7 +290,8 @@ let gyro: Gyro = new Gyro();
 let localizer: Localizer = new Localizer(gyro.getRotation(), new Pose(0, 0, createRotationDegrees(0.0)));
 
 function init() {
-    log("Testing123");
+    log("Robot code starting...")
+    log("Autonomous car")
 }
 
 /**
