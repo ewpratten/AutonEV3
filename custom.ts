@@ -22,13 +22,27 @@ let right_motor_port = "b";
 let gyro_port = 1;
 let wheel_diameter = 1; // TODO add real wheel diameter
 let wheel_circumference = wheel_diameter * Math.PI;
-let RampRate = 1;
-
-
+let RampRate = 0.0;
 
 /* Logging */
+let max_log_lines = 12;
+let active_log_messages = ["", ""];
 
-// TODO: Scrolling logs
+function log(message: string) {
+    active_log_messages.unshift(message);
+
+    if (active_log_messages.length > max_log_lines) {
+        active_log_messages.pop();
+    }
+
+    for (let i = 0; i < active_log_messages.length - 1; i++) {
+
+        // Disp the message to the screen
+        brick.showString(active_log_messages[i], max_log_lines - i);
+
+    }
+}
+
 
 
 
@@ -274,6 +288,10 @@ class Localizer {
 
 let gyro: Gyro = new Gyro();
 let localizer: Localizer = new Localizer(gyro.getRotation(), new Pose(0, 0, createRotationDegrees(0.0)));
+
+function init() {
+    log("Testing123");
+}
 
 /**
  * All main code shall be run from here to reduce issues with cross-compiling to "blocks mode"
