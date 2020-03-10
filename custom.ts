@@ -1,10 +1,12 @@
-/* ########## Main  ########## */
 
 // Path definition
 class Path {
     private scale: number;
 
     public waypoints: Pose[];
+
+
+
 
     public Path() {
 
@@ -14,25 +16,21 @@ class Path {
     }
 }
 
-class Constants {
-    // TODO add real values
-    public left_motor_port = "a";
-    public right_motor_port = "b";
-    public gyro = 1;
-
-}
-
-class config {
-    public RampRate = 1;
-}
+// Constants
+let left_motor_port = "a";
+let right_motor_port = "b";
+let gyro_port = 1;
+let wheel_diameter = 1; // TODO add real wheel diameter
+let wheel_circumference = wheel_diameter * Math.PI;
+let RampRate = 1;
 
 
-/**
- * All main code shall be run from here to reduce issues with cross-compiling to "blocks mode"
- */
-function loop() {
 
-}
+/* Logging */
+
+// TODO: Scrolling logs
+
+
 
 /* ########## MathUtils ########## */
 
@@ -41,7 +39,7 @@ function loop() {
  * @param degrees Degrees
  */
 function d2r(degrees: number) {
-    var pi = Math.PI;
+    let pi = Math.PI;
     return degrees * (pi / 180);
 }
 
@@ -50,8 +48,22 @@ function d2r(degrees: number) {
  * @param radians Radians
  */
 function r2d(radians: number) {
-    var pi = Math.PI;
+    let pi = Math.PI;
     return radians * (180 / pi);
+}
+
+function hypot(x: number, y: number) {
+
+    let max = 0;
+    let s = 0;
+    let arg = Math.abs(y);
+    if (arg > max) {
+        s *= (max / arg) * (max / arg);
+        max = arg;
+    }
+    s += arg === 0 && max === 0 ? 0 : (arg / max) * (arg / max);
+
+    return max === 1 / 0 ? 1 / 0 : max * Math.sqrt(s);
 }
 
 /**
@@ -71,12 +83,12 @@ class Gyro {
 
     public gyro_port: string;
 
-    constructor() {
-        
+    public getDegrees() {
+        return sensors.gyro1.angle();
     }
 
-    public getDegrees() {
-        return sensors.gyro1.getAngle();
+    public getRotation(): Rotation {
+        return new Rotation(d2r(this.getDegrees()));
     }
 
 
@@ -87,8 +99,8 @@ class Gyro {
 /* ########## Kinematics ########## */
 
 class DriveSignal {
-    public left_goal: number = 0.0;
-    public right_goal: number = 0.0;
+    public left_goal: number;
+    public right_goal: number;
 
     /**
      * 
@@ -106,7 +118,7 @@ class DriveSignal {
 /* ########## Localization ########## */
 
 class Rotation {
-    private rads: number = 0.0;
+    private rads: number;
 
     /**
      * 
@@ -129,8 +141,9 @@ class Rotation {
     }
 
     public fromPoint(x: number, y: number): Rotation {
-        var mag: number = Math.hypot(x, y);
-        var sin, cos;
+        let mag: number = hypot(x, y);
+        let sin: number;
+        let cos: number;
         if (mag > 1e-6) {
             sin = y / mag;
             cos = x / mag;
@@ -144,8 +157,8 @@ class Rotation {
     }
 
     public rotateBy(other: Rotation): Rotation {
-        var x: number = Math.cos(this.rads) * Math.cos(other.getRadians()) - Math.sin(this.rads) * Math.sin(other.getRadians());
-        var y: number = Math.cos(this.rads) * Math.sin(other.getRadians()) - Math.sin(this.rads) * Math.cos(other.getRadians());
+        let x: number = Math.cos(this.rads) * Math.cos(other.getRadians()) - Math.sin(this.rads) * Math.sin(other.getRadians());
+        let y: number = Math.cos(this.rads) * Math.sin(other.getRadians()) - Math.sin(this.rads) * Math.cos(other.getRadians());
 
         return this.fromPoint(x, y);
     }
@@ -232,22 +245,57 @@ class Localizer {
     }
 
     public update(currentAngle: Rotation, leftMeters: number, rightMeters: number) {
-        var deltaLeft: number = leftMeters - this.prevDistLeft;
-        var deltaRight: number = rightMeters - this.prevDistRight;
+        let deltaLeft: number = leftMeters - this.prevDistLeft;
+        let deltaRight: number = rightMeters - this.prevDistRight;
 
         this.prevDistLeft = leftMeters;
         this.prevDistRight = rightMeters;
 
-        var deltaPose: number = (deltaLeft + deltaRight) / 2.0;
-        var angle: Rotation = currentAngle.rotateBy(this.gyroOffset);
+        let deltaPose: number = (deltaLeft + deltaRight) / 2.0;
+        let angle: Rotation = currentAngle.rotateBy(this.gyroOffset);
 
         // TODO: These may need to be flipped cos/sin
-        var newX: number = this.pose.x + (deltaPose * Math.sin(angle.getRadians()));
-        var newY: number = this.pose.y + (deltaPose * Math.cos(angle.getRadians()));
+        let newX: number = this.pose.x + (deltaPose * Math.sin(angle.getRadians()));
+        let newY: number = this.pose.y + (deltaPose * Math.cos(angle.getRadians()));
 
         this.pose.x = newX;
         this.pose.y = newY;
         this.pose.theta = angle;
 
     }
+
+    public getPoseMeters(): Pose {
+        return this.pose;
+    }
+}
+
+
+/* ########## Main Robot Code ########## */
+
+let gyro: Gyro = new Gyro();
+let localizer: Localizer = new Localizer(gyro.getRotation(), new Pose(0, 0, createRotationDegrees(0.0)));
+
+/**
+ * All main code shall be run from here to reduce issues with cross-compiling to "blocks mode"
+ */
+function loop() {
+
+    // Get the robot's current position
+    let robotPose: Pose = handleLocalization();
+
+}
+
+function handleLocalization(): Pose {
+
+    // Read sensors
+    let leftMeters: number;
+    let rightMeters: number;
+    let angle: Rotation = gyro.getRotation();
+
+    // Calculate pose
+    localizer.update(angle, leftMeters, rightMeters);
+
+    // Return the pose
+    return localizer.getPoseMeters();
+
 }
