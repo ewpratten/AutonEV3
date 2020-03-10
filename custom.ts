@@ -283,6 +283,69 @@ class Localizer {
     }
 }
 
+/* ########## Drive code ########## */
+
+class Motor {
+
+    private motor: motors.Motor;
+    private output: number;
+
+    private rps: number;
+    private lastAngle: number;
+    private lastTime: number;
+
+    constructor(motor: motors.Motor) {
+        this.motor = motor;
+    }
+
+    public set(output: number) {
+        this.motor.run(output * 100);
+        this.output = output;
+    }
+
+    public setBrakes(on: boolean) {
+        this.motor.setBrake(on);
+    }
+
+    public update() {
+        let angle: number = this.motor.angle();
+        let dtheta: number = angle - this.lastAngle;
+        this.lastAngle = angle;
+        let time: number = control.millis()/1000;
+        let dt: number = time - this.lastTime;
+        this.lastTime = time;
+        this.rps = dtheta * dt;
+    }
+
+    public getRPS(): number {
+        return this.rps;
+
+    }
+
+    public getRPM():number{
+        return this.rps / 60;
+    }
+}
+
+// Motor defs
+let leftMotor: Motor = new Motor(motors.largeA);
+let rightMotor: Motor = new Motor(motors.largeA);
+
+function arcadeDrive(speed: number, turn: number) {
+    let left: number = speed + turn;
+    let right: number = speed - turn;
+
+    let magnitude: number = Math.max(left, right);
+    if (magnitude > 1.0) {
+        left /= magnitude;
+        right /= magnitude;
+    }
+
+    // Send tank command
+    leftMotor.set(left);
+    rightMotor.set(right);
+}
+
 
 /* ########## Main Robot Code ########## */
 
@@ -290,17 +353,41 @@ let gyro: Gyro = new Gyro();
 let localizer: Localizer = new Localizer(gyro.getRotation(), new Pose(0, 0, createRotationDegrees(0.0)));
 
 function init() {
-    log("Robot code starting...")
-    log("Autonomous car")
+    log("Robot code starting...");
+    log("Autonomous car");
+
+    log("Setting motor modes");
+    leftMotor.setBrakes(true);
+    rightMotor.setBrakes(true);
+
+    log("Awaiting button press");
+
 }
+
+let canRunCode = false;
 
 /**
  * All main code shall be run from here to reduce issues with cross-compiling to "blocks mode"
  */
 function loop() {
 
+    // Update both motors
+    leftMotor.update();
+    rightMotor.update();
+
+    // Wait for button press to run code
+    if (!canRunCode) {
+        canRunCode = brick.buttonDown.isPressed();
+        if (canRunCode) {
+            log("Running program");
+        }
+        return;
+    }
+
     // Get the robot's current position
     let robotPose: Pose = handleLocalization();
+
+    log("L: " + leftMotor.getRPS());
 
 }
 
