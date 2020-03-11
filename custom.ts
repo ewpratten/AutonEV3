@@ -3,9 +3,10 @@
 let left_motor_port = "a";
 let right_motor_port = "b";
 let gyro_port = 1;
-let wheel_diameter = 0.04; // TODO add real wheel diameter
+let wheel_diameter = 0.055; // TODO add real wheel diameter
 let wheel_circumference = wheel_diameter * Math.PI;
 let RampRate = 0.0;
+let trackWidth:number = 0.1175;
 
 /* Logging */
 let max_log_lines = 12;
@@ -281,8 +282,8 @@ class Localizer {
         let angle: Rotation = currentAngle.rotateBy(new Rotation(getWrappedError(this.gyroOffset.getRadians(), 0)));
 
         // TODO: These may need to be flipped cos/sin
-        let newX: number = this.pose.x + (deltaPose * Math.sin(angle.getRadians()));
-        let newY: number = this.pose.y + (deltaPose * Math.cos(angle.getRadians()));
+        let newX: number = this.pose.x + (deltaPose * Math.cos(angle.getRadians()));
+        let newY: number = this.pose.y + (deltaPose * Math.sin(angle.getRadians()));
 
         this.pose.x = newX;
         this.pose.y = newY;
@@ -305,6 +306,7 @@ class Motor {
     private rps: number;
     private lastAngle: number;
     private lastTime: number;
+    private inverted: boolean;
 
     constructor(motor: motors.Motor) {
         this.motor = motor;
@@ -319,6 +321,11 @@ class Motor {
         this.motor.setBrake(on);
     }
 
+    public setInverted(invert: boolean) {
+        this.motor.setInverted(invert);
+        this.inverted = invert;
+    }
+
     public update() {
         let angle: number = this.motor.angle();
         let dtheta: number = getWrappedError(angle, this.lastAngle);
@@ -330,12 +337,12 @@ class Motor {
     }
 
     public getRPS(): number {
-        return this.rps;
+        return this.rps * ((this.inverted) ? -1:1);
 
     }
 
     public getRPM(): number {
-        return this.rps / 60;
+        return (this.rps / 60)  * ((this.inverted) ? -1:1);
     }
 }
 
@@ -384,6 +391,10 @@ function init() {
     leftMotor.setBrakes(true);
     rightMotor.setBrakes(true);
 
+    log("Setting motor inversions");
+    leftMotor.setInverted(true);
+    rightMotor.setInverted(true);
+
     log("Awaiting button press");
 }
 
@@ -400,18 +411,26 @@ function loop() {
 
     // Wait for button press to run code
     if (!canRunCode) {
-        canRunCode = brick.buttonDown.isPressed();
-        if (canRunCode) {
+        if (brick.buttonDown.isPressed()) {
             log("Running program");
+            canRunCode = true;
         }
         return;
+    }else{
+        if (brick.buttonUp.isPressed()) {
+            arcadeDrive(0,0);
+            log("Program Stopped");
+            canRunCode = false;
+        }
     }
 
     // Get the robot's current position
     let robotPose: Pose = handleLocalization();
 
-    log(robotPose.toString());
+    log(""+ robotPose.toString());
 
+    // Move to the goal
+    driveToPoint(robotPose, new Pose(0.5, 0.0, new Rotation(0.0)));
 
 }
 
@@ -440,5 +459,29 @@ function handleLocalization(): Pose {
 
     // Return the pose
     return localizer.getPoseMeters();
+
+}
+
+let kp = 0.3;
+
+function driveToPoint(current: Pose, goal:Pose) {
+    let robotPose = current;  
+    let goalPose = goal;  
+
+    let alpha: number = Math.atan2(goal.x - current.x, goal.y - current.y) - current.theta.getRadians();
+    let delta: number = Math.atan2(2.0 * trackWidth * Math.sin(alpha), 1.0) * kp;
+
+    // Simple drive
+    arcadeDrive(0.5, delta);
+
+}
+
+function drivePath(motor1: Motor, Motor2: Motor){
+    
+    motor1.set(.5);
+    motor1.set(.5);
+    
+
+
 
 }
