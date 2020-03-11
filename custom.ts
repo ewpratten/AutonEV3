@@ -241,6 +241,9 @@ class Pose {
 }
 
 
+
+
+
 /**
  * Create a pose that follows a scaling factor
  * @param x  X component
@@ -308,6 +311,11 @@ class Localizer {
     }
 }
 
+
+
+
+
+
 /* ########## Drive code ########## */
 
 class Motor {
@@ -369,6 +377,36 @@ function arcadeDrive(speed: number, turn: number) {
     // Send tank command
     leftMotor.set(left);
     rightMotor.set(right);
+}
+
+
+
+/* ##### Turn To ##### */
+class Motion{
+
+    private leftMotor: Motor;
+    private rightMotor: Motor;
+
+    constructor(leftMotor: Motor, rightMotor: Motor){
+        this.leftMotor = leftMotor;
+        this.rightMotor = rightMotor;
+    }
+
+
+    public turnTo(angle: number, epsilon: number){
+        if(gyro.getDegrees() > angle - angle * epsilon){
+            leftMotor.set(0.5);
+            rightMotor.set(-0.5)
+        }else{
+            leftMotor.set(0);
+            rightMotor.set(0);
+        }
+    }
+
+
+
+
+
 }
 
 
