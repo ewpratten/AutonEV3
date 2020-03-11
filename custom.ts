@@ -2,8 +2,8 @@
 // Constants
 let left_motor_port = "a";
 let right_motor_port = "b";
-let gyro_port = 1;
 let wheel_diameter = 0.055; // TODO add real wheel diameter
+let gyroscope = sensors.gyro1;
 let wheel_circumference = wheel_diameter * Math.PI;
 let RampRate = 0.0;
 let trackWidth:number = 0.1175;
@@ -107,7 +107,7 @@ class Gyro {
     public gyro_port: string;
 
     public getDegrees() {
-        return sensors.gyro1.angle();
+        return gyroscope.angle();
     }
 
     public getRotation(): Rotation {
@@ -317,6 +317,10 @@ class Motor {
         this.output = output;
     }
 
+    public get(){
+        return this.output;
+    }
+
     public setBrakes(on: boolean) {
         this.motor.setBrake(on);
     }
@@ -345,6 +349,86 @@ class Motor {
         return (this.rps / 60)  * ((this.inverted) ? -1:1);
     }
 }
+
+/* ####### Grouping Of Motors ####### */
+
+
+class MotorGrouping{
+
+    private motors : Motor[];
+    public motorOneOutput: number;
+    public motorTwoOutput: number;
+
+    constructor(Motor1: Motor, Motor2: Motor){
+        this.motors.push(Motor1);
+        this.motors.push(Motor2);
+        this.motorOneOutput = Motor1.get();
+        this.motorTwoOutput = Motor2.get();
+    }
+
+    /**
+     * Sets output for both numbers
+     * 
+     * @param output motor power between -1,1
+     */
+    public setOutput(output: number){
+       this.motors[0].set(output * 100);
+       this.motorOneOutput = output;
+       this.motors[1].set(output * 100);
+       this.motorTwoOutput = output;
+       log("Setting Group Motor Speeds To: " + output)
+    }
+
+    /**
+     * Sets both motor outputs individually 
+     * 
+     * @param motorOneOutput Motor 1's output between -1,1
+     * @param motorTwoOutput Motor 2's output between -1,1
+     */
+    public setOutputPerMotor(motorOneOutput: number, motorTwoOutput: number){
+       this.motors[0].set(motorOneOutput * 100);
+       this.motorOneOutput = motorOneOutput;
+       this.motors[1].set(motorTwoOutput * 100);
+       this.motorTwoOutput = motorTwoOutput;
+       log("Setting Motor 1 Speed to: " + motorOneOutput);
+       log("Setting Motor 2 Speed to: " + motorTwoOutput)
+    }
+
+    /**
+     * Sets the brakes state
+     * 
+     * @param state the state the breaks should be in
+     */
+    public setBrakes(state: boolean){
+        for(let motor of this.motors){
+            motor.setBrakes(state);
+        }
+    }
+
+    /**
+     * Updates both motors in the group
+     */
+    public updateMotors(){
+        for(let motor of this.motors){
+            motor.update();
+        }
+    }
+
+    /**
+     * gets a motor from the motor list
+     * @param motorNumber the motor number in the array motor 1 = 0, motor 2 = 1
+     * @returns returns a motor
+     */
+    public getMotor(motorNumber: number){
+        return this.motors[motorNumber];
+    }
+
+
+
+}
+
+
+
 
 // Motor defs
 let leftMotor: Motor = new Motor(motors.largeA);
