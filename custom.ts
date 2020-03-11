@@ -19,7 +19,7 @@ class Path {
 // Constants
 let left_motor_port = "a";
 let right_motor_port = "b";
-let gyro_port = 1;
+let gyroscope = sensors.gyro1;
 let wheel_diameter = 0.04; // TODO add real wheel diameter
 let wheel_circumference = wheel_diameter * Math.PI;
 let RampRate = 0.0;
@@ -119,7 +119,7 @@ class Gyro {
     public gyro_port: string;
 
     public getDegrees() {
-        return sensors.gyro1.angle();
+        return gyroscope.angle();
     }
 
     public getRotation(): Rotation {
@@ -328,6 +328,10 @@ class Motor {
         this.output = output;
     }
 
+    public get(){
+        return this.output;
+    }
+
     public setBrakes(on: boolean) {
         this.motor.setBrake(on);
     }
@@ -351,6 +355,62 @@ class Motor {
         return this.rps / 60;
     }
 }
+
+/* ####### Grouping Of Motors ####### */
+
+
+class MotorGrouping{
+
+    private motors : Motor[];
+    public motorOneOutput: number;
+    public motorTwoOutput: number;
+
+    constructor(Motor1: Motor, Motor2: Motor){
+        this.motors.push(Motor1);
+        this.motors.push(Motor2);
+        this.motorOneOutput = Motor1.get();
+        this.motorTwoOutput = Motor2.get();
+    }
+
+    public setOutput(output: number){
+       this.motors[0].set(output * 100);
+       this.motorOneOutput = output;
+       this.motors[1].set(output * 100);
+       this.motorTwoOutput = output;
+       log("Setting Group Motor Speeds To: " + output)
+    }
+
+    public setOutputPerMotor(motorOneOutput: number, motorTwoOutput: number){
+       this.motors[0].set(motorOneOutput * 100);
+       this.motorOneOutput = motorOneOutput;
+       this.motors[1].set(motorTwoOutput * 100);
+       this.motorTwoOutput = motorTwoOutput;
+       log("Setting Motor 1 Speed to: " + motorOneOutput);
+       log("Setting Motor 2 Speed to: " + motorTwoOutput)
+    }
+
+    public setBrakes(state: boolean){
+        for(let motor of this.motors){
+            motor.setBrakes(state);
+        }
+    }
+
+    public updateMotors(){
+        for(let motor of this.motors){
+            motor.update();
+        }
+    }
+
+    public getMotor(motorNumber: number){
+        return this.motors[motorNumber];
+    }
+
+
+
+}
+
+
+
 
 // Motor defs
 let leftMotor: Motor = new Motor(motors.largeA);
