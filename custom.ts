@@ -46,7 +46,7 @@ function log(message: string) {
 
 
 
-/* ########## MathUtils ########## */
+/* ########## Utils ########## */
 
 /**
  * Convert degrees to radians
@@ -110,6 +110,10 @@ function clamp(val: number, min: number, max: number) {
  */
 function pf2(val: number): number {
     return Math.round(val * 100) / 100;
+}
+
+function isSimulation(): boolean {
+    return control.deviceFirmwareVersion() == "vSIM";
 }
 
 /* ########## Gyro Class ########## */
@@ -284,8 +288,8 @@ class Localizer {
     }
 
     public update(currentAngle: Rotation, leftMeters: number, rightMeters: number) {
-        let deltaLeft: number = leftMeters;//- this.prevDistLeft;
-        let deltaRight: number = rightMeters;// - this.prevDistRight;
+        let deltaLeft: number = leftMeters;
+        let deltaRight: number = rightMeters;
 
         this.prevDistLeft = leftMeters;
         this.prevDistRight = rightMeters;
@@ -371,6 +375,17 @@ function arcadeDrive(speed: number, turn: number) {
     rightMotor.set(right);
 }
 
+function initLib() {
+    log("Loaded Lib5K-FLL v1");
+    log("Talking with brick");
+    log("Brick ID: " + control.deviceSerialNumber());
+    log("Brick FW: " + control.deviceFirmwareVersion());
+    log("Is simulation: "+ isSimulation());
+    log("*Robot code starting*");
+
+    init();
+}
+
 
 /* ########## Main Robot Code ########## */
 
@@ -378,15 +393,11 @@ let gyro: Gyro = new Gyro();
 let localizer: Localizer = new Localizer(gyro.getRotation(), new Pose(0, 0, createRotationDegrees(0.0)));
 
 function init() {
-    log("Robot code starting...");
-    log("Autonomous car");
-
     log("Setting motor modes");
     leftMotor.setBrakes(true);
     rightMotor.setBrakes(true);
 
     log("Awaiting button press");
-
 }
 
 let canRunCode = false;
