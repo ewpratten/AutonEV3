@@ -372,6 +372,11 @@ class MotorGrouping{
         this.motorTwoOutput = Motor2.get();
     }
 
+    /**
+     * Sets output for both numbers
+     * 
+     * @param output motor power between -1,1
+     */
     public setOutput(output: number){
        this.motors[0].set(output * 100);
        this.motorOneOutput = output;
@@ -380,6 +385,12 @@ class MotorGrouping{
        log("Setting Group Motor Speeds To: " + output)
     }
 
+    /**
+     * Sets both motor outputs individually 
+     * 
+     * @param motorOneOutput Motor 1's output between -1,1
+     * @param motorTwoOutput Motor 2's output between -1,1
+     */
     public setOutputPerMotor(motorOneOutput: number, motorTwoOutput: number){
        this.motors[0].set(motorOneOutput * 100);
        this.motorOneOutput = motorOneOutput;
@@ -389,18 +400,31 @@ class MotorGrouping{
        log("Setting Motor 2 Speed to: " + motorTwoOutput)
     }
 
+    /**
+     * Sets the brakes state
+     * 
+     * @param state the state the breaks should be in
+     */
     public setBrakes(state: boolean){
         for(let motor of this.motors){
             motor.setBrakes(state);
         }
     }
 
+    /**
+     * Updates both motors in the group
+     */
     public updateMotors(){
         for(let motor of this.motors){
             motor.update();
         }
     }
 
+    /**
+     * gets a motor from the motor list
+     * @param motorNumber the motor number in the array motor 1 = 0, motor 2 = 1
+     * @returns returns a motor
+     */
     public getMotor(motorNumber: number){
         return this.motors[motorNumber];
     }
