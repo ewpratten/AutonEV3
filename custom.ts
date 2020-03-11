@@ -1,21 +1,4 @@
 
-// Path definition
-class Path {
-    private scale: number;
-
-    public waypoints: Pose[];
-
-
-
-
-    public Path() {
-
-        // Create list of waypoints
-
-
-    }
-}
-
 // Constants
 let left_motor_port = "a";
 let right_motor_port = "b";
@@ -380,7 +363,7 @@ function initLib() {
     log("Talking with brick");
     log("Brick ID: " + control.deviceSerialNumber());
     log("Brick FW: " + control.deviceFirmwareVersion());
-    log("Is simulation: "+ isSimulation());
+    log("Is simulation: " + isSimulation());
     log("*Robot code starting*");
 
     init();
@@ -391,6 +374,10 @@ function initLib() {
 
 let gyro: Gyro = new Gyro();
 let localizer: Localizer = new Localizer(gyro.getRotation(), new Pose(0, 0, createRotationDegrees(0.0)));
+
+// Path definition
+let scale: number = 1.0;
+let waypoints: Pose[] = [new Pose(0.0, 0.0, createRotationDegrees(0.0)), new Pose(1.0, 0.0, createRotationDegrees(0.0))];
 
 function init() {
     log("Setting motor modes");
