@@ -517,6 +517,8 @@ function loop() {
 
     // Move to the goal
     driveToPoint(robotPose, new Pose(0.5, 0.0, new Rotation(0.0)));
+    let x = [new Pose(10, 3, new Rotation(0)), new Pose(10, 3, new Rotation(0)), new Pose(12, 5, new Rotation(0))];
+    createPath(x);
 }
 
 function handleLocalization(): Pose {
@@ -569,12 +571,15 @@ function createPath(points: Pose[]) {
     let spacing: number;
     let pointCount: number;
     let interiorLength: number;
-    let addedPoints: Pose[];
+    let addedPoints = [new Pose(0, 0, new Rotation(0))];
 
-    for (let i = 0; i < points.length - 1; i++) {
+
+    // for each point given add points
+    for (let i = 0; i < points.length; i++) {
+        spacing = .2;
         pose1 = points[i];
         pose2 = points[i + 1];
-        vector = new Pose(pose2.x - pose2.x, pose2.y - pose1.y, new Rotation(0));
+        vector = new Pose(pose2.x - pose1.x, pose2.y - pose1.y, new Rotation(0));
 
         pointCount = Math.ceil(hypot(vector.x, vector.y) / spacing);
 
@@ -587,7 +592,54 @@ function createPath(points: Pose[]) {
         }
 
     }
+    
+    // for (let i of addedPoints) {
+    //     console.log("" + i);
+    // }
 
     return addedPoints;
+
+}
+
+
+
+class drivePath {
+
+    path: Pose[];
+    currentGoalPose: Pose;
+    lookAhead: number;
+
+
+    constructor(path: Pose[]) {
+        this.path = path;
+        this.lookAhead = 3;
+        this.driveAlongPath();
+
+    }
+
+    public driveAlongPath() {
+        let robotCurrentPose = localizer.getPoseMeters();
+        this.getGoalPose(robotCurrentPose);
+
+
+
+    }
+
+    public getGoalPose(currentPose: Pose) {
+        for (let pose of this.path) {
+
+            if (hypot(pose.x - currentPose.x, pose.y - currentPose.y) <= this.lookAhead) {
+                this.path = this.path.filter(obj => obj !== pose);
+                this.currentGoalPose = pose;
+            }
+        }
+
+        return currentPose;
+
+
+    }
+
+
+
 
 }
