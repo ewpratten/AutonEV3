@@ -6,7 +6,7 @@ let wheel_diameter = 0.055; // TODO add real wheel diameter
 let gyroscope = sensors.gyro1;
 let wheel_circumference = wheel_diameter * Math.PI;
 let RampRate = 0.0;
-let trackWidth:number = 0.1175;
+let trackWidth: number = 0.1175;
 
 /* Logging */
 let max_log_lines = 12;
@@ -18,6 +18,9 @@ function log(message: string) {
     if (active_log_messages.length > max_log_lines) {
         active_log_messages.pop();
     }
+
+    // Clear the screen to make way
+    brick.clearScreen();
 
     for (let i = 0; i < active_log_messages.length - 1; i++) {
 
@@ -98,6 +101,10 @@ function pf2(val: number): number {
 
 function isSimulation(): boolean {
     return control.deviceFirmwareVersion() == "vSIM";
+}
+
+function epsilonEquals(a: number, b: number, epsilon: number): boolean {
+    return (a - epsilon <= b) && (a + epsilon >= b);
 }
 
 /* ########## Gyro Class ########## */
@@ -317,7 +324,7 @@ class Motor {
         this.output = output;
     }
 
-    public get(){
+    public get() {
         return this.output;
     }
 
@@ -341,25 +348,25 @@ class Motor {
     }
 
     public getRPS(): number {
-        return this.rps * ((this.inverted) ? -1:1);
+        return this.rps * ((this.inverted) ? -1 : 1);
 
     }
 
     public getRPM(): number {
-        return (this.rps / 60)  * ((this.inverted) ? -1:1);
+        return (this.rps / 60) * ((this.inverted) ? -1 : 1);
     }
 }
 
 /* ####### Grouping Of Motors ####### */
 
 
-class MotorGrouping{
+class MotorGrouping {
 
-    private motors : Motor[];
+    private motors: Motor[];
     public motorOneOutput: number;
     public motorTwoOutput: number;
 
-    constructor(Motor1: Motor, Motor2: Motor){
+    constructor(Motor1: Motor, Motor2: Motor) {
         this.motors.push(Motor1);
         this.motors.push(Motor2);
         this.motorOneOutput = Motor1.get();
@@ -371,12 +378,12 @@ class MotorGrouping{
      * 
      * @param output motor power between -1,1
      */
-    public setOutput(output: number){
-       this.motors[0].set(output * 100);
-       this.motorOneOutput = output;
-       this.motors[1].set(output * 100);
-       this.motorTwoOutput = output;
-       log("Setting Group Motor Speeds To: " + output)
+    public setOutput(output: number) {
+        this.motors[0].set(output * 100);
+        this.motorOneOutput = output;
+        this.motors[1].set(output * 100);
+        this.motorTwoOutput = output;
+        log("Setting Group Motor Speeds To: " + output)
     }
 
     /**
@@ -385,13 +392,13 @@ class MotorGrouping{
      * @param motorOneOutput Motor 1's output between -1,1
      * @param motorTwoOutput Motor 2's output between -1,1
      */
-    public setOutputPerMotor(motorOneOutput: number, motorTwoOutput: number){
-       this.motors[0].set(motorOneOutput * 100);
-       this.motorOneOutput = motorOneOutput;
-       this.motors[1].set(motorTwoOutput * 100);
-       this.motorTwoOutput = motorTwoOutput;
-       log("Setting Motor 1 Speed to: " + motorOneOutput);
-       log("Setting Motor 2 Speed to: " + motorTwoOutput)
+    public setOutputPerMotor(motorOneOutput: number, motorTwoOutput: number) {
+        this.motors[0].set(motorOneOutput * 100);
+        this.motorOneOutput = motorOneOutput;
+        this.motors[1].set(motorTwoOutput * 100);
+        this.motorTwoOutput = motorTwoOutput;
+        log("Setting Motor 1 Speed to: " + motorOneOutput);
+        log("Setting Motor 2 Speed to: " + motorTwoOutput)
     }
 
     /**
@@ -399,8 +406,8 @@ class MotorGrouping{
      * 
      * @param state the state the breaks should be in
      */
-    public setBrakes(state: boolean){
-        for(let motor of this.motors){
+    public setBrakes(state: boolean) {
+        for (let motor of this.motors) {
             motor.setBrakes(state);
         }
     }
@@ -408,8 +415,8 @@ class MotorGrouping{
     /**
      * Updates both motors in the group
      */
-    public updateMotors(){
-        for(let motor of this.motors){
+    public updateMotors() {
+        for (let motor of this.motors) {
             motor.update();
         }
     }
@@ -419,16 +426,13 @@ class MotorGrouping{
      * @param motorNumber the motor number in the array motor 1 = 0, motor 2 = 1
      * @returns returns a motor
      */
-    public getMotor(motorNumber: number){
+    public getMotor(motorNumber: number) {
         return this.motors[motorNumber];
     }
 
 
 
 }
-
-
-
 
 // Motor defs
 let leftMotor: Motor = new Motor(motors.largeA);
@@ -483,6 +487,7 @@ function init() {
 }
 
 let canRunCode = false;
+let simulation = isSimulation();
 
 /**
  * All main code shall be run from here to reduce issues with cross-compiling to "blocks mode"
@@ -500,18 +505,21 @@ function loop() {
             canRunCode = true;
         }
         return;
-    }else{
+    } else {
         if (brick.buttonUp.isPressed()) {
-            arcadeDrive(0,0);
+            arcadeDrive(0, 0);
             log("Program Stopped");
             canRunCode = false;
+            return;
         }
     }
+
+
 
     // Get the robot's current position
     let robotPose: Pose = handleLocalization();
 
-    log(""+ robotPose.toString());
+    log("" + robotPose.toString());
 
     // Move to the goal
     driveToPoint(robotPose, new Pose(0.5, 0.0, new Rotation(0.0)));
@@ -536,6 +544,18 @@ function handleLocalization(): Pose {
         rightMPS = 0.0;
     }
 
+    // Update the gyro in simulation
+    if (simulation) {
+
+        // Update the motor simulations
+        motors.largeA.update();
+        motors.largeB.update();
+
+        // Update the gyro simulation
+        sensors.gyro1.updateSimulation(leftMPS, rightMPS, trackWidth);
+
+    }
+
     let angle: Rotation = gyro.getRotation();
 
     // Calculate pose
@@ -547,24 +567,30 @@ function handleLocalization(): Pose {
 }
 
 let kp = 0.3;
+let eps = 0.1;
 
-function driveToPoint(current: Pose, goal:Pose) {
-    let robotPose = current;  
-    let goalPose = goal;  
+function driveToPoint(current: Pose, goal: Pose) {
 
     let alpha: number = Math.atan2(goal.x - current.x, goal.y - current.y) - current.theta.getRadians();
     let delta: number = Math.atan2(2.0 * trackWidth * Math.sin(alpha), 1.0) * kp;
 
+    let speed: number = clamp(alpha, -1, 1);
+    speed = 0.0;
+
+    if (epsilonEquals(goal.x - current.x, 0, eps) && epsilonEquals(goal.y - current.y, 0, eps)) {
+        speed = 0.0;
+    }
+
     // Simple drive
-    arcadeDrive(0.5, delta);
+    arcadeDrive(speed, delta);
 
 }
 
-function drivePath(motor1: Motor, Motor2: Motor){
-    
+function drivePath(motor1: Motor, Motor2: Motor) {
+
     motor1.set(.5);
     motor1.set(.5);
-    
+
 
 
 

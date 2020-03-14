@@ -3,5 +3,23 @@
 </head>
 
 <body>
-<canvas id="NXT-screen" height="200" width="200"></canvas>
+    <h1>EV3 Simulation GUI</h1>
+    <canvas id="NXT-screen" height="200" width="200"></canvas>
+    <h3>Brick I/O</h3>
+    <button onclick="brick.simulation.registerButton(0);">Up</button>
+    <button onclick="brick.simulation.registerButton(1);">Down</button>
+    <button onclick="brick.simulation.registerButton(2);">Left</button>
+    <button onclick="brick.simulation.registerButton(3);">Right</button>
+    <button onclick="brick.simulation.registerButton(4);">Enter</button>
+
+    <script src="build/simulation.js"></script>
+    <script src="build/custom.js"></script>
+    <script>
+        /* Main runner */
+        brick.clearScreen();
+        initLib();
+
+        /* 20ms looper for robot code */
+        setInterval(loop, 20);
+    </script>
 </body>
