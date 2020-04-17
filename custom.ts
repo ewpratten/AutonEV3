@@ -296,6 +296,55 @@ class Localizer {
     }
 }
 
+
+// interface for command
+interface command{
+
+    initialize(): void;
+
+    execute(): void;
+    
+    end(): void;
+
+    isFinished(): boolean;
+
+}
+
+// organizes commands
+class commandLooper{
+
+    private commandList: Array<command>;
+
+    // add a new command to the looper
+    registerCommand(newCommand: command){
+        newCommand.initialize();
+        this.commandList.push(newCommand);
+    }
+
+    // stops all commands
+    stopAll(){
+        this.commandList.forEach(element => {
+            element.end();
+        });
+    }
+
+    // Runs one iteration of the command loop
+    runCommandLoop(){
+        let iterCount: number = 0;
+        this.commandList.forEach(element => {
+            element.execute();
+            if(element.isFinished()){
+                element.end()
+                delete this.commandList[iterCount]
+                iterCount--;
+            }
+            iterCount++;
+        });
+    }
+
+}
+
+
 /* ########## Drive code ########## */
 
 class Motor {
@@ -565,7 +614,10 @@ function drivePath(motor1: Motor, Motor2: Motor){
     motor1.set(.5);
     motor1.set(.5);
     
-
-
-
 }
+
+
+
+
+
+
