@@ -296,6 +296,55 @@ class Localizer {
     }
 }
 
+
+// interface for command
+interface command{
+
+    initialize(): void;
+
+    execute(): void;
+    
+    end(): void;
+
+    isFinished(): boolean;
+
+}
+
+// organizes commands
+class commandLooper{
+
+    private commandList: Array<command>;
+
+    // add a new command to the looper
+    registerCommand(newCommand: command){
+        newCommand.initialize();
+        this.commandList.push(newCommand);
+    }
+
+    // stops all commands
+    stopAll(){
+        this.commandList.forEach(element => {
+            element.end();
+        });
+    }
+
+    // Runs one iteration of the command loop
+    runCommandLoop(){
+        let iterCount: number = 0;
+        this.commandList.forEach(element => {
+            element.execute();
+            if(element.isFinished()){
+                element.end()
+                delete this.commandList[iterCount]
+                iterCount--;
+            }
+            iterCount++;
+        });
+    }
+
+}
+
+
 /* ########## Drive code ########## */
 
 class Motor {
@@ -561,6 +610,11 @@ function driveToPoint(current: Pose, goal: Pose) {
 
 }
 
+
+
+
+
+
 function createPath(points: Pose[]) {
 
     let pose1: Pose;
@@ -578,6 +632,7 @@ function createPath(points: Pose[]) {
 
         pointCount = Math.ceil(hypot(vector.x, vector.y) / spacing);
 
+
         interiorLength = (1.0 / hypot(vector.x, vector.y))
 
         vector = new Pose(vector.x * interiorLength, vector.y * interiorLength, new Rotation(0));
@@ -590,4 +645,3 @@ function createPath(points: Pose[]) {
 
     return addedPoints;
 
-}
